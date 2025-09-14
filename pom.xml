@@ -1,0 +1,15 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.github.yilativs.batchbridge4jdbc</groupId>
+  <artifactId>batchbridge4jdbc</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>Batch Bridge For JDBC</name>
+  <description>Uses output of one query to be a source for another query with advanced control.</description>
+  <dependencies>
+  	<dependency>
+  		<groupId>org.slf4j</groupId>
+  		<artifactId>slf4j-api</artifactId>
+  		<version>2.0.12</version>
+  	</dependency>
+  </dependencies>
+</project>
