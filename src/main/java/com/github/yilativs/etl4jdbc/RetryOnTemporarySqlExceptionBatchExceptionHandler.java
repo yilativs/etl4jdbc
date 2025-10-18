@@ -1,4 +1,4 @@
-package com.github.yilativs.bb4jdbc;
+package com.github.yilativs.etl4jdbc;
 
 /**
  * A BatchExceptionHandler that retries on temporary SQL exceptions (SQLTransientException)

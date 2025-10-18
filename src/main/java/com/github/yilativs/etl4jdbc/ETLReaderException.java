@@ -1,4 +1,4 @@
-package com.github.yilativs.bb4jdbc;
+package com.github.yilativs.etl4jdbc;
 
 public class ETLReaderException extends RuntimeException {
 

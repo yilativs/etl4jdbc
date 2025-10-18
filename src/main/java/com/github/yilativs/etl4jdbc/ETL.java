@@ -1,4 +1,4 @@
-package com.github.yilativs.bb4jdbc;
+package com.github.yilativs.etl4jdbc;
 
 import static java.time.Instant.now;
 import static java.util.List.copyOf;
@@ -45,83 +45,92 @@ public class ETL {
 	private static final BatchResult COMPLETE_EXECUTION_SIGNAL = null;
 
 	/**
-	 * DataSource to read from.
+	 * DataSource to read from. Must not be null.
 	 */
 	private final DataSource sourceDataSource;
 
 	/**
-	 * SQL query to fetch data from sourceDataSource. Must return at least one column.
+	 * SQL query to fetch data from sourceDataSource. Must not be null and must return at least one column.
 	 */
 	private final String sourceSql;
 
 	/**
-	 * Transformer to apply to each row fetched from source before inserting into target.
+	 * Transformer to apply to each row fetched from source before inserting into target. Must not be null.
 	 */
-	private Transformer transformer = new Transformer() {
-	};
+	private Transformer transformer; 
 
 	/**
-	 * Exception handler to apply to validate if batch can be re-executed in case of failure.
+	 * Exception handler to apply to validate if batch can be re-executed in case of failure. Must not be null.
 	 */
 	private BatchExceptionHandler exceptionHandler = new BatchExceptionHandler() {
 	};
 
 	/**
-	 * DataSource to write to.
+	 * DataSource to write to. Must not be null.
 	 */
 	private final DataSource targetDataSource;
 
 	/**
-	 * SQL query to execute on targetDataSource. Must have same number of parameters as columns returned transformer.
+	 * SQL query to execute on targetDataSource. Must not be null and must have same number of parameters as columns returned transformer.
 	 */
 	private final String targetSql;
 
 	/**
-	 * Number of rows to fetch from source query
+	 * Number of rows to fetch from source query. Must be positive (>0).
 	 */
 	private int fetchSize = 1000;
 
 	/**
-	 * Number of statements execute in a batch.
+	 * Number of statements execute in a batch. Must be positive (>0).
 	 */
 	private int batchSize = 5000;
 
 	/**
-	 * Number of batches to keep in queue for processing. Once the limit is reached, the fetching thread will stop reading.
+	 * Number of batches to keep in queue for processing. Must be positive (>0).
+	 * Once the limit is reached, the fetching thread will stop reading.
 	 */
 	private int batchesQueueSize = 100;
 
 	/**
-	 * Number of times to retry a batch in case of failure if in BatchExceptionHandler considers this exception can be
-	 * retried.
+	 * Number of times to retry a batch in case of failure if in BatchExceptionHandler considers this exception can be retried. Must be non-negative (>=0).
 	 */
 	private int batchRetryLimit = 0;
 
 	/**
-	 * Wait time between retries in milliseconds.
+	 * Wait time between retries in milliseconds. Must be non-negative (>=0).
 	 */
 	private int timeBetweenRetries = 0;
 
 	/**
-	 * Maximum number of failed batches allowed before stopping the process.
+	 * Maximum number of failed batches allowed before stopping the process. Must be non-negative (>=0).
 	 */
 	private int failedBatchLimit = 0;
 
 	/**
-	 * Number of concurrent threads to use for processing batches.
+	 * Number of concurrent threads to use for processing batches. Must be positive (>0).
 	 */
 	private int concurrencyLevel = 1;
 
 	/**
-	 * Number of milliseconds to wait for termination of executor service.
+	 * Number of milliseconds to wait for termination of executor service. Must be non-negative (>=0).
 	 */
 	private int timeToWaitOnInterrupt = 0;
 
-	public ETL(DataSource sourceDataSource, String sourceSql, DataSource targetDataSource, String targetSql) {
+	private ETL(DataSource sourceDataSource, String sourceSql, DataSource targetDataSource, String targetSql) {
 		this.sourceDataSource = sourceDataSource;
 		this.sourceSql = sourceSql;
 		this.targetDataSource = targetDataSource;
 		this.targetSql = targetSql;
+	}
+
+	/**
+	 * Starts the ETL process. Returns a stream of BatchResult objects representing results of each batch operation.
+	 * 
+	 * @param sourceParams parameters for the source sql.
+	 * @return {@link Stream<BatchResult>} a stream of batch results.
+	 */
+	public Stream<BatchResult> run(Object... sourceParams) throws ETLReaderException {
+		return run(Optional.empty(), Optional.empty(), sourceParams);
 	}
 
 	/**
@@ -133,7 +142,7 @@ public class ETL {
 	 * @param sourceParams parameters for the source sql.
 	 * @return {@link Stream<BatchResult>} a stream of batch results.
 	 */
-	public Stream<BatchResult> update(Optional<String> mdcKey, Optional<String> mdcValue, Object... sourceParams) throws ETLReaderException {
+	public Stream<BatchResult> run(Optional<String> mdcKey, Optional<String> mdcValue, Object... sourceParams) throws ETLReaderException {
 		logger.info("Starting processissing.");
 
 		// runs the rejected task in the thread that attempted to submit it, so that no reading is done when all workers are
@@ -168,7 +177,9 @@ public class ETL {
 					currentBatch.add(transformer.transform(getRow(resultSet, columnCount)));
 					// if batch is full or we reached the end, submit for processing
 					if (currentBatch.size() >= batchSize || (resultSet.isLast() && currentBatch.size() > 0)) {
-						completionService.submit(() -> processBatch(mdcKey, mdcValue, copyOf(currentBatch), batchesSubmitted.getAndIncrement(), shouldStop));
+						//we need to make a copy before submit because otherwise inside lambda copy may be executed when batch is cleared or contains new values
+						List<Object[]> batchParameters = copyOf(currentBatch);
+						completionService.submit(() -> processBatch(mdcKey, mdcValue, batchParameters, batchesSubmitted.getAndIncrement(), shouldStop));
 						if (logger.isDebugEnabled()) {
 							logger.debug("{} of batches are currenly being processed.", executor.getActiveCount());
 						}
@@ -375,6 +386,177 @@ public class ETL {
 		for (int i = 0; i < params.length; i++) {
 			// in jdbc parameters are 1-based
 			ps.setObject(i + 1, params[i]);
+		}
+	}
+
+	public static class Builder {
+		// Mandatory fields
+		private final DataSource sourceDataSource;
+		private final String sourceSql;
+		private final DataSource targetDataSource;
+		private final String targetSql;
+
+		// Optional fields - initialized to default values
+		private Transformer transformer = (parameters) ->  parameters;
+		private BatchExceptionHandler exceptionHandler = new BatchExceptionHandler() {
+		};
+		private int fetchSize = 1000;
+		private int batchSize = 5000;
+		private int batchesQueueSize = 100;
+		private int batchRetryLimit = 0;
+		private int timeBetweenRetries = 0;
+		private int failedBatchLimit = 0;
+		private int concurrencyLevel = 1;
+		private int timeToWaitOnInterrupt = 0;
+
+		public static Builder instance(DataSource sourceDataSource, String sourceSql, DataSource targetDataSource, String targetSql) {
+			return new Builder(sourceDataSource, sourceSql, targetDataSource, targetSql);
+		}
+
+		private Builder(DataSource sourceDataSource, String sourceSql, DataSource targetDataSource, String targetSql) {
+			if (sourceDataSource == null) throw new IllegalArgumentException("sourceDataSource must not be null");
+			if (sourceSql == null) throw new IllegalArgumentException("sourceSql must not be null");
+			if (targetDataSource == null) throw new IllegalArgumentException("targetDataSource must not be null");
+			if (targetSql == null) throw new IllegalArgumentException("targetSql must not be null");
+			this.sourceDataSource = sourceDataSource;
+			this.sourceSql = sourceSql;
+			this.targetDataSource = targetDataSource;
+			this.targetSql = targetSql;
+		}
+
+		/**
+		 * Sets the transformer to apply to each row. Must not be null.
+		 * @param transformer the transformer
+		 * @return this builder
+		 * @throws IllegalArgumentException if transformer is null
+		 */
+		public Builder transformer(Transformer transformer) {
+			if (transformer == null) throw new IllegalArgumentException("transformer must not be null");
+			this.transformer = transformer;
+			return this;
+		}
+
+		/**
+		 * Sets the exception handler. Must not be null.
+		 * @param exceptionHandler the exception handler
+		 * @return this builder
+		 * @throws IllegalArgumentException if exceptionHandler is null
+		 */
+		public Builder exceptionHandler(BatchExceptionHandler exceptionHandler) {
+			if (exceptionHandler == null) throw new IllegalArgumentException("exceptionHandler must not be null");
+			this.exceptionHandler = exceptionHandler;
+			return this;
+		}
+
+		/**
+		 * Sets the fetch size. Must be positive (>0).
+		 * @param fetchSize the fetch size
+		 * @return this builder
+		 * @throws IllegalArgumentException if fetchSize <= 0
+		 */
+		public Builder fetchSize(int fetchSize) {
+			if (fetchSize <= 0) throw new IllegalArgumentException("fetchSize must be positive");
+			this.fetchSize = fetchSize;
+			return this;
+		}
+
+		/**
+		 * Sets the batch size. Must be positive (>0).
+		 * @param batchSize the batch size
+		 * @return this builder
+		 * @throws IllegalArgumentException if batchSize <= 0
+		 */
+		public Builder batchSize(int batchSize) {
+			if (batchSize <= 0) throw new IllegalArgumentException("batchSize must be positive");
+			this.batchSize = batchSize;
+			return this;
+		}
+
+		/**
+		 * Sets the batches queue size. Must be positive (>0).
+		 * @param batchesQueueSize the queue size
+		 * @return this builder
+		 * @throws IllegalArgumentException if batchesQueueSize <= 0
+		 */
+		public Builder batchesQueueSize(int batchesQueueSize) {
+			if (batchesQueueSize <= 0) throw new IllegalArgumentException("batchesQueueSize must be positive");
+			this.batchesQueueSize = batchesQueueSize;
+			return this;
+		}
+
+		/**
+		 * Sets the batch retry limit. Must be non-negative (>=0).
+		 * @param batchRetryLimit the retry limit
+		 * @return this builder
+		 * @throws IllegalArgumentException if batchRetryLimit < 0
+		 */
+		public Builder batchRetryLimit(int batchRetryLimit) {
+			if (batchRetryLimit < 0) throw new IllegalArgumentException("batchRetryLimit must be non-negative");
+			this.batchRetryLimit = batchRetryLimit;
+			return this;
+		}
+
+		/**
+		 * Sets the time between retries in milliseconds. Must be non-negative (>=0).
+		 * @param timeBetweenRetries the time in ms
+		 * @return this builder
+		 * @throws IllegalArgumentException if timeBetweenRetries < 0
+		 */
+		public Builder timeBetweenRetries(int timeBetweenRetries) {
+			if (timeBetweenRetries < 0) throw new IllegalArgumentException("timeBetweenRetries must be non-negative");
+			this.timeBetweenRetries = timeBetweenRetries;
+			return this;
+		}
+
+		/**
+		 * Sets the failed batch limit. Must be non-negative (>=0).
+		 * @param failedBatchLimit the limit
+		 * @return this builder
+		 * @throws IllegalArgumentException if failedBatchLimit < 0
+		 */
+		public Builder failedBatchLimit(int failedBatchLimit) {
+			if (failedBatchLimit < 0) throw new IllegalArgumentException("failedBatchLimit must be non-negative");
+			this.failedBatchLimit = failedBatchLimit;
+			return this;
+		}
+
+		/**
+		 * Sets the concurrency level. Must be positive (>0).
+		 * @param concurrencyLevel the concurrency level
+		 * @return this builder
+		 * @throws IllegalArgumentException if concurrencyLevel <= 0
+		 */
+		public Builder concurrencyLevel(int concurrencyLevel) {
+			if (concurrencyLevel <= 0) throw new IllegalArgumentException("concurrencyLevel must be positive");
+			this.concurrencyLevel = concurrencyLevel;
+			return this;
+		}
+
+		/**
+		 * Sets the time to wait on interrupt in milliseconds. Must be non-negative (>=0).
+		 * @param timeToWaitOnInterrupt the time in ms
+		 * @return this builder
+		 * @throws IllegalArgumentException if timeToWaitOnInterrupt < 0
+		 */
+		public Builder timeToWaitOnInterrupt(int timeToWaitOnInterrupt) {
+			if (timeToWaitOnInterrupt < 0) throw new IllegalArgumentException("timeToWaitOnInterrupt must be non-negative");
+			this.timeToWaitOnInterrupt = timeToWaitOnInterrupt;
+			return this;
+		}
+
+		public ETL build() {
+			ETL etl = new ETL(sourceDataSource, sourceSql, targetDataSource, targetSql);
+			etl.transformer = this.transformer;
+			etl.exceptionHandler = this.exceptionHandler;
+			etl.fetchSize = this.fetchSize;
+			etl.batchSize = this.batchSize;
+			etl.batchesQueueSize = this.batchesQueueSize;
+			etl.batchRetryLimit = this.batchRetryLimit;
+			etl.timeBetweenRetries = this.timeBetweenRetries;
+			etl.failedBatchLimit = this.failedBatchLimit;
+			etl.concurrencyLevel = this.concurrencyLevel;
+			etl.timeToWaitOnInterrupt = this.timeToWaitOnInterrupt;
+			return etl;
 		}
 	}
 

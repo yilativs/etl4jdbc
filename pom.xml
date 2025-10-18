@@ -2,14 +2,25 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.github.yilativs.batchbridge4jdbc</groupId>
   <artifactId>etl4jdbc</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>1.0.0</version>
   <name>ETL For JDBC</name>
-  <description>Fast ETL for that uses output of one query to be a source for another query with advanced control.</description>
+  <description>Fast, simple and easy to learn ETL with minmal dependencies.</description>
   <properties>
     <maven.compiler.source>8</maven.compiler.source>
     <maven.compiler.target>8</maven.compiler.target>
-    <testcontainers.version>1.19.1</testcontainers.version>
   </properties>
+  <licenses><license><name>LGPL v3</name><url>https://www.gnu.org/licenses/lgpl-3.0.en.html</url></license></licenses>
+  <dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-bom</artifactId>
+            <version>2.0.1</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+  </dependencyManagement>
   <dependencies>
   	<dependency>
   		<groupId>org.slf4j</groupId>
@@ -17,14 +28,49 @@
   		<version>2.0.12</version>
   	</dependency>
   	<dependency>
-        <groupId>org.testcontainers</groupId>
+        <groupId>com.zaxxer</groupId>
+        <artifactId>HikariCP</artifactId>
+        <version>7.0.2</version>
+        <scope>test</scope>
+    </dependency>
+  	<dependency>
+        <groupId>org.postgresql</groupId>
         <artifactId>postgresql</artifactId>
-        <version>${testcontainers.version}</version>
+        <version>42.7.1</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>mysql</groupId>
+        <artifactId>mysql-connector-java</artifactId>
+        <version>8.0.33</version>
+        <scope>test</scope>
+    </dependency>
+  	<dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers-postgresql</artifactId>
+        <scope>test</scope>
     </dependency>
     <dependency>
         <groupId>org.testcontainers</groupId>
-        <artifactId>mysql</artifactId>
-        <version>${testcontainers.version}</version>
+        <artifactId>testcontainers-mysql</artifactId>
+        <scope>test</scope>
     </dependency>
+	<dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers</artifactId>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers-junit-jupiter</artifactId>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+       <groupId>org.junit.jupiter</groupId>
+       <artifactId>junit-jupiter-api</artifactId>
+       <version>5.14.0</version>
+       <scope>test</scope>
+     </dependency>
+
   </dependencies>
 </project>
