@@ -1,4 +1,4 @@
-package com.github.yilativs.etl4jdbc;
+package io.github.yilativs.etl4jdbc;
 
 /**
  * A functional interface for transforming an array of objects extracted from one row into array of objects that will be

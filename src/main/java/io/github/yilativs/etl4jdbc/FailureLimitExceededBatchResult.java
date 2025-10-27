@@ -1,4 +1,4 @@
-package com.github.yilativs.etl4jdbc;
+package io.github.yilativs.etl4jdbc;
 
 import java.time.Instant;
 import java.util.List;

@@ -4,20 +4,20 @@
 
 ## Overview
 
-**ETL For JDBC** is a lightweight Java library designed for simple, high-performance ETL (Extract, Transform, Load) operations between JDBC-compatible databases. It was created for cases where a straightforward ETL process is needed, without the complexity or heavy dependencies of frameworks like Apache Camel or Spring Batch.
+**ETL For JDBC** is a lightweight high-perfomance ETL(Extract, Transform, Load) library. 
+- Designed for cases where a straightforward ETL process is needed, without the complexity or heavy dependencies of frameworks like Apache Camel or Spring Batch. 
+- Ideal for lightweight scheduled jobs/AWS Lambdas/Azure Functions.
+- Focuses on efficient batch processing, concurrency, and backpressure handling for JDBC source-to-target data transfers.
+
 
 ## Key Features
 
-- **Minimal Dependencies:** Only requires SLF4J for logging and JDBC for database access.
-- **Performance-Oriented:** Efficient batching, concurrency, and backpressure handling for fast data transfer.
+- **Performance-Oriented:** Efficient batching, concurrency, and backpressure handling for cases where performance is a priority.
 - **Simple Setup:** Configure and run ETL jobs with just a few lines of code.
 - **Customizable:** Supports row transformation, batch retry logic, and failure handling.
+- **Minimal Dependencies:** Only requires SLF4J for logging.
+- **Minimal Dependencies:** GraalVM friendly.
 
-## Why Use ETL For JDBC?
-
-- **Less Code:** Set up ETL jobs in a fraction of the code required by Apache Camel or Spring Batch.
-- **Minimal Overhead:** No need for XML configuration, dependency injection, or heavyweight runtime.
-- **Direct JDBC Access:** No abstraction layers—just fast, direct data movement.
 
 ## Comparison with Apache Camel
 
@@ -54,36 +54,40 @@ Add the following dependency to your Maven project:
 
 ```xml
 <dependency>
-    <groupId>com.github.yilativs.batchbridge4jdbc</groupId>
+    <groupId>io.github.yilativs.batchbridge4jdbc</groupId>
     <artifactId>etl4jdbc</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```
 
-## Configuration Options
-
-- `batchSize(int size)`: Number of rows per batch.
-- `fetchSize(int size)`: Number of rows fetched from source per query.
-- `concurrencyLevel(int level)`: Number of concurrent threads for batch processing.
-- `transformer(Transformer transformer)`: Custom row transformation.
-- `exceptionHandler(BatchExceptionHandler handler)`: Custom batch retry logic.
-
-## Example Usage
+## Usage
 
 ### ETL For JDBC
 
 ```java
-DataSource source = ...; // your source DataSource
-DataSource target = ...; // your target DataSource
-
+//define DataSources to your source and target databases 
+DataSource sourceDS = ...; // your source DataSource
+DataSource targetDS = ...; // your target DataSource
+//define sql to read from source and write to target
 String sourceSql = "SELECT id, name FROM source_table";
+//by default columns selected from sourceSQL will be used as parameters for targetSql
 String targetSql = "INSERT INTO target_table (id, name) VALUES (?, ?)";
 
-ETL.Builder(source, sourceSql, target, targetSql)
-    .batchSize(1000)
-    .concurrencyLevel(4)
-    // .transformer(customTransformer) // optional
-    // .exceptionHandler(customExceptionHandler) // optional
+//simple approach with sensible defaults (because of sensible defaults often this is all you need)
+ETL.Builder(sourceDS, sourceSql, targetDS, targetSql).build().run();
+
+//alternative approach with all optional parameters defined.
+ETL.Builder(sourceDS, sourceSql, targetDS, targetSql)
+    .fetchSize(1000) //jdbc fetch size
+    .batchSize(5000) //jdbc batch size
+    .batchQueueCapacity(100) //capacity of queue for batch processing. Fetching thread will stop reading once queue is full.
+    .batchRetryLimit(0) //number of retries for retriable exceptions. See BatchExceptionHandler(e.g. deadlock).
+    .timeBetweenRetries(0) //milliseconds between retries.
+    .failedBatchLimit(0) //maximum number of failed batches allowed before stopping the process.
+    .concurrencyLevel(1) //number of concurrent threads to use for processing batches.
+    .timeToWaitOnInterrupt()//milliseconds to wait fo termination of executor service.
+    .transformer(params -> new Object[]{params[0], params[1].toString().toUpperCase()}) //transformer (transforms second parameter to upper case)
+    .exceptionHandler(e -> false) // defines exception handling, returns true if retry is possible.
     .build()
     .run();
 ```
@@ -91,13 +95,13 @@ ETL.Builder(source, sourceSql, target, targetSql)
 ### Apache Camel (for comparison)
 
 ```java
-DataSource source = ...; // your source DataSource
-DataSource target = ...; // your target DataSource
+DataSource sourceD = ...; // your source DataSource
+DataSource targetS = ...; // your target DataSource
 String sourceSql = "SELECT id, name FROM source_table";
 String targetSql = "INSERT INTO target_table (id, name) VALUES (:#id, :#name)";
 CamelContext context = new DefaultCamelContext();
-context.getRegistry().bind("sourceDataSource", source);
-context.getRegistry().bind("targetDataSource", target);
+context.getRegistry().bind("sourceDataSource", sourceDS);
+context.getRegistry().bind("targetDataSource", targetDS);
 
 context.addRoutes(new RouteBuilder() {
     @Override
@@ -166,7 +170,7 @@ public void runJob() throws Exception {
     JobExecution execution = jobLauncher.run(etlJob, params);
 }
 ```
-Requires multiple beans, configuration files, a Spring context, explicit concurrency configuration, and job execution code.
+Requires multiple beans, configuration files, domain classes, a Spring context, explicit concurrency configuration, and job execution code.
 
 
 ## License

@@ -1,4 +1,4 @@
-package com.github.yilativs.etl4jdbc;
+package io.github.yilativs.etl4jdbc;
 
 import static java.lang.Long.valueOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -62,7 +62,7 @@ public class ETLIT {
 				AtomicInteger counter = new AtomicInteger();
 				LinkedHashMap<Object, Object> expectedPairs = getExpectedPairs();
 				int batchSize = 1;
-				ETL.Builder.instance(pgDs, sourceSql, myDs, targetSql).batchSize(batchSize).batchesQueueSize(3).build().run().forEach(batchResult -> {
+				ETL.Builder.instance(pgDs, sourceSql, myDs, targetSql).batchSize(batchSize).batchQueueCapacity(3).build().run().forEach(batchResult -> {
 					counter.incrementAndGet();
 					// we expect all results to be successful
 					assertTrue(batchResult instanceof SuccessfulBatchResult);
@@ -104,7 +104,7 @@ public class ETLIT {
 				AtomicInteger counter = new AtomicInteger();
 				LinkedHashMap<Object, Object> expectedPairs = getExpectedPairs();
 				int batchSize = 10;
-				ETL.Builder.instance(pgDs, sourceSql, myDs, targetSql).batchSize(batchSize).batchesQueueSize(1).build().run().forEach(batchResult -> {
+				ETL.Builder.instance(pgDs, sourceSql, myDs, targetSql).batchSize(batchSize).batchQueueCapacity(1).build().run().forEach(batchResult -> {
 					counter.incrementAndGet();
 					// we expect all results to be successful
 					assertTrue(batchResult instanceof SuccessfulBatchResult);
@@ -151,7 +151,7 @@ public class ETLIT {
 				String targetSql = "INSERT INTO target values (?, ?)";
 				AtomicInteger counter = new AtomicInteger();
 				int batchSize = 10;
-				ETL.Builder.instance(pgDs, sourceSql, myDs, targetSql).batchSize(batchSize).batchesQueueSize(1)
+				ETL.Builder.instance(pgDs, sourceSql, myDs, targetSql).batchSize(batchSize).batchQueueCapacity(1)
 				.transformer(results -> new Object[] {((String)results[0]).toUpperCase(), ((Long)results[1]) * 2})
 				.build().run().forEach(batchResult -> {
 					counter.incrementAndGet();
@@ -207,8 +207,8 @@ public class ETLIT {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> builder.fetchSize(-1));
 		Assertions.assertThrows(IllegalArgumentException.class, () -> builder.batchSize(0));
 		Assertions.assertThrows(IllegalArgumentException.class, () -> builder.batchSize(-1));
-		Assertions.assertThrows(IllegalArgumentException.class, () -> builder.batchesQueueSize(0));
-		Assertions.assertThrows(IllegalArgumentException.class, () -> builder.batchesQueueSize(-1));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> builder.batchQueueCapacity(0));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> builder.batchQueueCapacity(-1));
 		Assertions.assertThrows(IllegalArgumentException.class, () -> builder.concurrencyLevel(0));
 		Assertions.assertThrows(IllegalArgumentException.class, () -> builder.concurrencyLevel(-1));
 	}
