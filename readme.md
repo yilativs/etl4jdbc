@@ -54,7 +54,7 @@ Add the following dependency to your Maven project:
 
 ```xml
 <dependency>
-    <groupId>io.github.yilativs.batchbridge4jdbc</groupId>
+    <groupId>io.github.yilativs.etl4jdbc</groupId>
     <artifactId>etl4jdbc</artifactId>
     <version>1.0.0</version>
 </dependency>
@@ -95,8 +95,8 @@ ETL.Builder(sourceDS, sourceSql, targetDS, targetSql)
 ### Apache Camel (for comparison)
 
 ```java
-DataSource sourceD = ...; // your source DataSource
-DataSource targetS = ...; // your target DataSource
+DataSource sourceDS = ...; // your source DataSource
+DataSource targetDS = ...; // your target DataSource
 String sourceSql = "SELECT id, name FROM source_table";
 String targetSql = "INSERT INTO target_table (id, name) VALUES (:#id, :#name)";
 CamelContext context = new DefaultCamelContext();
@@ -106,14 +106,31 @@ context.getRegistry().bind("targetDataSource", targetDS);
 context.addRoutes(new RouteBuilder() {
     @Override
     public void configure() {
-        from("jdbc:sourceDataSource?useHeadersAsParameters=true&statement=" + source)
+        from("jdbc:sourceDataSource?useHeadersAsParameters=true&statement=" + sourceSql)
             .split(body())
             .streaming()
-            .batchConsumer(1000) // batch size
-            .threads(4) // concurrency level
-            // .process(customProcessor) // optional transformer (row mapping/processing)
-            // .onException(Exception.class).handled(true).process(customExceptionHandler) // optional exception handler
+            .batchConsumer(1000) // batchSize: batch size for processing
+            .threads(4) // concurrencyLevel: number of concurrent threads
+            .process(exchange -> {
+                // transformer: transform row before writing
+                Map<String, Object> row = exchange.getIn().getBody(Map.class);
+                row.put("name", row.get("name").toString().toUpperCase());
+                exchange.getIn().setBody(row);
+            })
+            .onException(Exception.class)
+                .handled(true)
+                .process(exchange -> {
+                    // exceptionHandler: custom retry/failure logic
+                    Exception e = exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Exception.class);
+                    // implement retry logic or failure handling here
+                })
+                .maximumRedeliveries(0) // batchRetryLimit: number of retries for retriable exceptions
+                .redeliveryDelay(0) // timeBetweenRetries: milliseconds between retries
+                .end()
+            // .to("direct:batchQueue") // batchQueueCapacity: not natively supported, but can be simulated with custom queue endpoints
             .to("jdbc:targetDataSource?useHeadersAsParameters=true&statement=" + targetSql);
+        // failedBatchLimit: not natively supported, but can be implemented with custom error handling
+        // timeToWaitOnInterrupt: not natively supported, but can be managed via shutdown hooks
     }
 });
 context.start();
@@ -123,9 +140,17 @@ Requires context creating, binding, and usage of route expressions.
 ### Spring Batch (for comparison)
 
 ```java
-int batchSize = 1000; // batch size
+int fetchSize = 1000; // fetchSize: JDBC fetch size
+int batchSize = 5000; // batchSize: chunk size for processing
+int batchQueueCapacity = 100; // batchQueueCapacity: not natively supported, can be simulated with custom queue/throttle
+int batchRetryLimit = 3; // batchRetryLimit: number of retries for retriable exceptions
+int timeBetweenRetries = 1000; // timeBetweenRetries: milliseconds between retries
+int failedBatchLimit = 5; // failedBatchLimit: maximum number of failed batches allowed before stopping
+int concurrencyLevel = 4; // concurrencyLevel: number of concurrent threads
+long timeToWaitOnInterrupt = 5000; // timeToWaitOnInterrupt: not natively supported, can be managed via shutdown hooks
 String sourceSql = "SELECT id, name FROM source_table";
 String targetSql = "INSERT INTO target_table (id, name) VALUES (?, ?)";
+
 // Sample domain classes
 public class SourceRow {
     private Long id;
@@ -140,19 +165,60 @@ public class TargetRow {
 }
 
 @Bean
-public Job etlJob(JobBuilderFactory jobs, StepBuilderFactory steps) {
+public JdbcCursorItemReader<SourceRow> jdbcReader(DataSource sourceDS) {
+    JdbcCursorItemReader<SourceRow> reader = new JdbcCursorItemReader<>();
+    reader.setDataSource(sourceDS);
+    reader.setSql(sourceSql);
+    reader.setFetchSize(fetchSize); // fetchSize
+    reader.setRowMapper((rs, rowNum) -> {
+        SourceRow row = new SourceRow();
+        row.setId(rs.getLong("id"));
+        row.setName(rs.getString("name"));
+        return row;
+    });
+    return reader;
+}
+
+@Bean
+public ItemProcessor<SourceRow, TargetRow> processor() {
+    return source -> {
+        TargetRow target = new TargetRow();
+        target.setId(source.getId());
+        target.setName(source.getName().toUpperCase()); // transformer
+        return target;
+    };
+}
+
+@Bean
+public JdbcBatchItemWriter<TargetRow> jdbcWriter(DataSource targetDS) {
+    JdbcBatchItemWriter<TargetRow> writer = new JdbcBatchItemWriter<>();
+    writer.setDataSource(targetDS);
+    writer.setSql(targetSql);
+    writer.setItemPreparedStatementSetter((item, ps) -> {
+        ps.setLong(1, item.getId());
+        ps.setString(2, item.getName());
+    });
+    return writer;
+}
+
+@Bean
+public Job etlJob(JobBuilderFactory jobs, StepBuilderFactory steps, DataSource sourceDS, DataSource targetDS) {
     return jobs.get("etlJob")
         .start(steps.get("etlStep")
-            .<SourceRow, TargetRow>chunk(batchSize) // batch size
-            .reader(jdbcReader(sourceSql)) // uses constant
-            .processor(processor()) // transformer (required, but can be pass-through)
-            // .processor(customProcessor) // optional transformer
-            .writer(jdbcWriter(targetSql)) // uses constant
+            .<SourceRow, TargetRow>chunk(batchSize) // batchSize
+            .reader(jdbcReader(sourceDS))
+            .processor(processor()) // transformer
+            .writer(jdbcWriter(targetDS))
             .faultTolerant() // enables exception handling features
-            // .skip(Exception.class) // optional exception handler: skip logic
-            // .retry(Exception.class) // optional exception handler: retry logic
+            .retryLimit(batchRetryLimit) // batchRetryLimit
+            .backOffPolicy(new FixedBackOffPolicy() {{ setBackOffPeriod(timeBetweenRetries); }}) // timeBetweenRetries
+            .skipLimit(failedBatchLimit) // failedBatchLimit
+            // .skipPolicy(customSkipPolicy) // exceptionHandler: custom skip logic
+            // .retryPolicy(customRetryPolicy) // exceptionHandler: custom retry logic
             .taskExecutor(new SimpleAsyncTaskExecutor()) // concurrency
-            .throttleLimit(4) // concurrency level
+            .throttleLimit(concurrencyLevel) // concurrencyLevel
+            // batchQueueCapacity: not natively supported, can be simulated with custom queue/throttle
+            // timeToWaitOnInterrupt: not natively supported, can be managed via shutdown hooks
             .build())
         .build();
 }
