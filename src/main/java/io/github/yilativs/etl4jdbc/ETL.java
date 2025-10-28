@@ -395,6 +395,9 @@ public class ETL {
 		}
 	}
 
+	/**
+	 * Builder for ETL configuration and instantiation.
+	 */
 	public static class Builder {
 		// Mandatory fields
 		private final DataSource sourceDataSource;
@@ -414,6 +417,14 @@ public class ETL {
 		private int concurrencyLevel = 1;
 		private int timeToWaitOnInterrupt = 0;
 
+		/**
+		 * Returns a new Builder instance.
+		 * @param sourceDataSource the source data source
+		 * @param sourceSql the source SQL
+		 * @param targetDataSource the target data source
+		 * @param targetSql the target SQL
+		 * @return a new Builder
+		 */
 		public static Builder instance(DataSource sourceDataSource, String sourceSql, DataSource targetDataSource, String targetSql) {
 			return new Builder(sourceDataSource, sourceSql, targetDataSource, targetSql);
 		}
@@ -462,11 +473,11 @@ public class ETL {
 		}
 
 		/**
-		 * Sets the fetch size. Must be positive (>0).
+		 * Sets the fetch size. Must be positive (&gt;0).
 		 * 
 		 * @param fetchSize the fetch size
 		 * @return this builder
-		 * @throws IllegalArgumentException if fetchSize <= 0
+		 * @throws IllegalArgumentException if fetchSize &le; 0
 		 */
 		public Builder fetchSize(int fetchSize) {
 			if (fetchSize <= 0)
@@ -476,11 +487,11 @@ public class ETL {
 		}
 
 		/**
-		 * Sets the batch size. Must be positive (>0).
+		 * Sets the batch size. Must be positive (&gt;0).
 		 * 
 		 * @param batchSize the batch size
 		 * @return this builder
-		 * @throws IllegalArgumentException if batchSize <= 0
+		 * @throws IllegalArgumentException if batchSize &le; 0
 		 */
 		public Builder batchSize(int batchSize) {
 			if (batchSize <= 0)
@@ -490,11 +501,11 @@ public class ETL {
 		}
 
 		/**
-		 * Sets the batches queue size. Must be positive (>0).
+		 * Sets the batches queue size. Must be positive (&gt;0).
 		 * 
 		 * @param batchQueueCapacity the queue capacity
 		 * @return this builder
-		 * @throws IllegalArgumentException if batchQueueCapacity <= 0
+		 * @throws IllegalArgumentException if batchQueueCapacity &le; 0
 		 */
 		public Builder batchQueueCapacity(int batchQueueCapacity) {
 			if (batchQueueCapacity <= 0)
@@ -504,11 +515,11 @@ public class ETL {
 		}
 
 		/**
-		 * Sets the batch retry limit. Must be non-negative (>=0).
+		 * Sets the batch retry limit. Must be non-negative (&ge;0).
 		 * 
 		 * @param batchRetryLimit the retry limit
 		 * @return this builder
-		 * @throws IllegalArgumentException if batchRetryLimit < 0
+		 * @throws IllegalArgumentException if batchRetryLimit &lt; 0
 		 */
 		public Builder batchRetryLimit(int batchRetryLimit) {
 			if (batchRetryLimit < 0)
@@ -518,11 +529,11 @@ public class ETL {
 		}
 
 		/**
-		 * Sets the time between retries in milliseconds. Must be non-negative (>=0).
+		 * Sets the time between retries in milliseconds. Must be non-negative (&ge;0).
 		 * 
 		 * @param timeBetweenRetries the time in ms
 		 * @return this builder
-		 * @throws IllegalArgumentException if timeBetweenRetries < 0
+		 * @throws IllegalArgumentException if timeBetweenRetries &lt; 0
 		 */
 		public Builder timeBetweenRetries(int timeBetweenRetries) {
 			if (timeBetweenRetries < 0)
@@ -532,11 +543,11 @@ public class ETL {
 		}
 
 		/**
-		 * Sets the failed batch limit. Must be non-negative (>=0).
+		 * Sets the failed batch limit. Must be non-negative (&ge;0).
 		 * 
 		 * @param failedBatchLimit the limit
 		 * @return this builder
-		 * @throws IllegalArgumentException if failedBatchLimit < 0
+		 * @throws IllegalArgumentException if failedBatchLimit &lt; 0
 		 */
 		public Builder failedBatchLimit(int failedBatchLimit) {
 			if (failedBatchLimit < 0)
@@ -546,11 +557,11 @@ public class ETL {
 		}
 
 		/**
-		 * Sets the concurrency level. Must be positive (>0).
+		 * Sets the concurrency level. Must be positive (&gt;0).
 		 * 
 		 * @param concurrencyLevel the concurrency level
 		 * @return this builder
-		 * @throws IllegalArgumentException if concurrencyLevel <= 0
+		 * @throws IllegalArgumentException if concurrencyLevel &le; 0
 		 */
 		public Builder concurrencyLevel(int concurrencyLevel) {
 			if (concurrencyLevel <= 0)
@@ -560,11 +571,11 @@ public class ETL {
 		}
 
 		/**
-		 * Sets the time to wait on interrupt in milliseconds. Must be non-negative (>=0).
+		 * Sets the time to wait on interrupt in milliseconds. Must be non-negative (&ge;0).
 		 * 
 		 * @param timeToWaitOnInterrupt the time in ms
 		 * @return this builder
-		 * @throws IllegalArgumentException if timeToWaitOnInterrupt < 0
+		 * @throws IllegalArgumentException if timeToWaitOnInterrupt &lt; 0
 		 */
 		public Builder timeToWaitOnInterrupt(int timeToWaitOnInterrupt) {
 			if (timeToWaitOnInterrupt < 0)
@@ -573,6 +584,10 @@ public class ETL {
 			return this;
 		}
 
+		/**
+		 * Builds the ETL instance with the configured parameters.
+		 * @return the ETL instance
+		 */
 		public ETL build() {
 			ETL etl = new ETL(sourceDataSource, sourceSql, targetDataSource, targetSql);
 			etl.transformer = this.transformer;

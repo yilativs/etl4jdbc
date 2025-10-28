@@ -10,6 +10,13 @@ import java.util.List;
  */
 public class FailureLimitExceededBatchResult extends TerminalFailureBatchResult {
 
+	/**
+	 * Constructs a FailureLimitExceededBatchResult.
+	 * @param exception the exception that caused the failure
+	 * @param parameters the batch parameters
+	 * @param beginTime the start time
+	 * @param endTime the end time
+	 */
 	public FailureLimitExceededBatchResult(Exception exception, List<Object[]> parameters, Instant beginTime, Instant endTime) {
 		super(exception, parameters, beginTime, endTime);
 	}
