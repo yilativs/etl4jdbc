@@ -8,6 +8,13 @@ import java.util.List;
  */
 public class TerminalFailureBatchResult extends FailedBatchResult {
 
+	/**
+	 * Constructs a TerminalFailureBatchResult.
+	 * @param exception the exception that caused the failure
+	 * @param parameters the batch parameters
+	 * @param beginTime the start time
+	 * @param endTime the end time
+	 */
 	public TerminalFailureBatchResult(Exception exception, List<Object[]> parameters, Instant beginTime, Instant endTime) {
 		super(exception, parameters, beginTime, endTime);
 	}

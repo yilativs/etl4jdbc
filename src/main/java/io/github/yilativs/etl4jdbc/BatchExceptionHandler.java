@@ -7,9 +7,10 @@ package io.github.yilativs.etl4jdbc;
 public interface BatchExceptionHandler {
 	
 	/** 
-	 * 
-	 * @param exception
-	 * @return true if exception is retriable.
+	 * Determines if the given exception is retryable.
+	 *
+	 * @param exception the exception to evaluate
+	 * @return true if exception is retriable
 	 */
 	boolean isRetryable(Exception exception);
 
