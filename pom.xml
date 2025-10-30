@@ -1,15 +1,16 @@
-<project
-	xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>io.github.yilativs.batchbridge4jdbc</groupId>
+	<groupId>io.github.yilativs.etl4jdbc</groupId>
 	<artifactId>etl4jdbc</artifactId>
-	<version>1.0.1</version>
+	<version>1.0.0</version>
 	<name>ETL For JDBC</name>
 	<description>Fast, simple and easy to learn ETL with minmal dependencies.</description>
 	<properties>
-		<maven.compiler.source>8</maven.compiler.source>
-		<maven.compiler.target>8</maven.compiler.target>
+		<maven.compiler.source>17</maven.compiler.source>
+		<maven.compiler.target>17</maven.compiler.target>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<project.url>https://github.com/yilativs/etl4jdbc</project.url>
 	</properties>
 	<licenses>
 		<license>
@@ -17,6 +18,22 @@
 			<url>https://www.gnu.org/licenses/lgpl-3.0.en.html</url>
 		</license>
 	</licenses>
+	<scm>
+		<connection>scm:git:https://github.com/yilativs/etl4jdbc.git</connection>
+		<developerConnection>scm:git:https://github.com/yilativs/etl4jdbc.git</developerConnection>
+		<url>https://github.com/yilativs/etl4jdbc</url>
+		<tag>HEAD</tag>
+	</scm>
+	<url>https://github.com/yilativs/etl4jdbc</url>
+	<developers>
+		<developer>
+			<id>yilativs</id>
+			<name>Vitalii Se</name>
+			<email>yilativs@users.noreply.github.com</email>
+			<url>https://github.com/yilativs</url>
+		</developer>
+	</developers>
+
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -32,7 +49,7 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-			<version>2.0.12</version>
+			<version>2.0.17</version>
 		</dependency>
 		<dependency>
 			<groupId>com.zaxxer</groupId>
@@ -47,9 +64,9 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>mysql</groupId>
-			<artifactId>mysql-connector-java</artifactId>
-			<version>8.0.33</version>
+			<groupId>com.mysql</groupId>
+			<artifactId>mysql-connector-j</artifactId>
+			<version>9.5.0</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -90,7 +107,7 @@
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.12</version>
+				<version>0.8.14</version>
 				<executions>
 					<execution>
 						<goals>
@@ -153,6 +170,15 @@
 			<build>
 				<plugins>
 					<plugin>
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+						<version>0.9.0</version>
+						<extensions>true</extensions>
+						<configuration>
+							<publishingServerId>central</publishingServerId>
+						</configuration>
+					</plugin>
+					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
 						<version>3.2.8</version>
@@ -165,17 +191,6 @@
 								</goals>
 							</execution>
 						</executions>
-					</plugin>
-					<plugin>
-						<groupId>org.sonatype.plugins</groupId>
-						<artifactId>nexus-staging-maven-plugin</artifactId>
-						<version>1.7.0</version>
-						<extensions>true</extensions>
-						<configuration>
-							<serverId>ossrh</serverId>
-							<nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-							<autoReleaseAfterClose>true</autoReleaseAfterClose>
-						</configuration>
 					</plugin>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
@@ -207,14 +222,4 @@
 			</build>
 		</profile>
 	</profiles>
-	<distributionManagement>
-		<repository>
-			<id>ossrh</id>
-			<url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-		</repository>
-		<snapshotRepository>
-			<id>ossrh</id>
-			<url>https://s01.oss.sonatype.org/content/repositories/snapshots/</url>
-		</snapshotRepository>
-	</distributionManagement>
 </project>
