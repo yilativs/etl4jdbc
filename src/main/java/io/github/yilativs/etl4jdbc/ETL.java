@@ -152,7 +152,6 @@ public class ETL {
 		// Create executor with bounded queue for back pressure
 		ThreadPoolExecutor executor = new ThreadPoolExecutor(concurrencyLevel, concurrencyLevel, 0L, MILLISECONDS, new LinkedBlockingQueue<>(batchQueueCapacity), rejectionPolicy);
 		ExecutorCompletionService<BatchResult> completionService = new ExecutorCompletionService<>(executor);
-
 		AtomicInteger totalBatchFailureCount = new AtomicInteger(0);
 		AtomicBoolean shouldStop = new AtomicBoolean(false);
 		AtomicInteger batchesSubmitted = new AtomicInteger(0);
@@ -175,7 +174,12 @@ public class ETL {
 				int columnCount = resultSet.getMetaData().getColumnCount();
 				final List<Object[]> currentBatch = new ArrayList<>(batchSize);
 				while (resultSet.next() && !shouldStop.get()) {
-					currentBatch.add(transformer.transform(getRow(resultSet, columnCount)));
+					Object[] results = transformer.transform(getRow(resultSet, columnCount));
+					if (results == null) {
+						throw new IllegalStateException("Transformer: " + transformer.getClass().getName() + " returned null");
+					}
+					currentBatch.add(results);
+
 					// if batch is full or we reached the end, submit for processing
 					if (currentBatch.size() >= batchSize || (resultSet.isLast() && currentBatch.size() > 0)) {
 						// we need to make a copy before submit because otherwise inside lambda copy may be executed when batch is cleared or
@@ -199,10 +203,12 @@ public class ETL {
 				shouldStop.set(true);
 				readerTheadException.set(e);
 			} finally {
+				if (!executor.isShutdown() || !executor.isTerminated() || !executor.isTerminated()) {
+					completionService.submit(() -> COMPLETE_EXECUTION_SIGNAL);
+				}
 				closeQuietly(resultSet);
 				closeQuietly(preparedStatement);
 				closeQuietly(connection);
-				completionService.submit(() -> COMPLETE_EXECUTION_SIGNAL);
 				removeMDC(mdcKey);
 			}
 		});
@@ -254,7 +260,7 @@ public class ETL {
 				shouldStop.set(true);
 				throw new ETLReaderException("Unexpected exception happen during batch processing ", e.getCause());
 			} catch (ExecutionException e) {
-				// should never happen as we catch all exceptions in processBatch
+				// should happen in case of RuntimeException in processBatch
 				logger.error("Error processing batch", e);
 				shouldStop.set(true);
 				throw new ETLReaderException("Unexpected exception happen during batch processing ", e.getCause());
@@ -419,10 +425,11 @@ public class ETL {
 
 		/**
 		 * Returns a new Builder instance.
+		 * 
 		 * @param sourceDataSource the source data source
-		 * @param sourceSql the source SQL
+		 * @param sourceSql        the source SQL
 		 * @param targetDataSource the target data source
-		 * @param targetSql the target SQL
+		 * @param targetSql        the target SQL
 		 * @return a new Builder
 		 */
 		public static Builder instance(DataSource sourceDataSource, String sourceSql, DataSource targetDataSource, String targetSql) {
@@ -586,6 +593,7 @@ public class ETL {
 
 		/**
 		 * Builds the ETL instance with the configured parameters.
+		 * 
 		 * @return the ETL instance
 		 */
 		public ETL build() {

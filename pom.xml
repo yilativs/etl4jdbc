@@ -2,7 +2,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.github.yilativs.etl4jdbc</groupId>
 	<artifactId>etl4jdbc</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.1</version>
 	<name>ETL For JDBC</name>
 	<description>Fast, simple and easy to learn ETL with minmal dependencies.</description>
 	<properties>
@@ -11,6 +11,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<project.url>https://github.com/yilativs/etl4jdbc</project.url>
+		<mockito.version>5.20.0</mockito.version>
 	</properties>
 	<licenses>
 		<license>
@@ -99,6 +100,18 @@
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
 			<version>1.5.20</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>${mockito.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<version>${mockito.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
